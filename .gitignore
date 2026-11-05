@@ -1,0 +1,7 @@
+build/
+out/
+.vs/
+.vscode/
+*.code-workspace
+.DS_Store
+/main
