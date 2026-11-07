@@ -23,7 +23,7 @@ int main() {
     // loop that keeps running until window is closed
     while (window.isOpen()) {
         Event event;
-        
+
         // loop that checks if there is any change of events and handles them one by one
         while (window.pollEvent(event)) {
             // two ways to close window
