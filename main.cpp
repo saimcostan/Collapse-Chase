@@ -1,6 +1,14 @@
 #include <SFML/Graphics.hpp>
 using namespace sf;
 
+//variables for player movements 
+float Gravity = 0.5f;
+float VerticalVelocity1 = 0.f;
+float VerticalVelocity2 = 0.f;
+bool IsOnGround1 = true;
+bool IsOnGround2 = true;
+float GroundY = 630.f;
+
 // Function used to update player movements according to user input
 void Update(RectangleShape &Player1, RectangleShape &Player2, RenderWindow &window);
 
@@ -49,34 +57,57 @@ int main() {
 void Update(RectangleShape& Player1, RectangleShape& Player2, RenderWindow& window) {
 
     // Checking which key was pressed and if the player is within the boundary of the window
-    if (Keyboard::isKeyPressed(Keyboard::W) && Player1.getPosition().y > 0) {
-        Player1.move(0.f, -5.f);
-    }
+    
     if (Keyboard::isKeyPressed(Keyboard::A) && Player1.getPosition().x > 0) {
         Player1.move(-5.f, 0.f);
     }
 
-    // adding .getGlobalBounds() to make sure that the player remains fully visible on the bottom and right boundaries
-    if (Keyboard::isKeyPressed(Keyboard::S) && (Player1.getPosition().y + Player1.getGlobalBounds().height) < window.getSize().y) {
-        Player1.move(0.f, 5.f);
-    }
     if (Keyboard::isKeyPressed(Keyboard::D) && (Player1.getPosition().x + Player1.getGlobalBounds().width) < window.getSize().x) {
         Player1.move(5.f, 0.f);
     }
-    // The same process is repeated for the movement of player 2
-    if (Keyboard::isKeyPressed(Keyboard::Up) && Player2.getPosition().y > 0) {
-        Player2.move(0.f, -5.f);
+
+	if (Keyboard::isKeyPressed(Keyboard::W) && IsOnGround1) { // If the player is on the ground and the jump key is pressed, initiate a jump
+        VerticalVelocity1 = -12.f;
+        IsOnGround1 = false;
     }
+
+	//adding constant gravity in vertical velocity and moving the player downwards according to the velocity
+    VerticalVelocity1 += Gravity;
+    Player1.move(0.f, VerticalVelocity1);  
+
+    if (Player1.getPosition().y + Player1.getGlobalBounds().height >= window.getSize().y) {
+
+        Player1.setPosition(Player1.getPosition().x, GroundY);
+        IsOnGround1 = true;
+		VerticalVelocity1 = 0.f; // Resetting the vertical velocity when the player lands on the ground
+    }
+  
+  
+    // The same process is repeated for the movement of player 2
     if (Keyboard::isKeyPressed(Keyboard::Left) && Player2.getPosition().x > 0) {
         Player2.move(-5.f, 0.f);
     }
 
-    if (Keyboard::isKeyPressed(Keyboard::Down) && (Player2.getPosition().y + Player2.getGlobalBounds().height) < window.getSize().y) {
-        Player2.move(0.f, 5.f);
-    }
     if (Keyboard::isKeyPressed(Keyboard::Right) && (Player2.getPosition().x + Player2.getGlobalBounds().width) < window.getSize().x) {
         Player2.move(5.f, 0.f);
     }
+
+    if (Keyboard::isKeyPressed(Keyboard::Up) && IsOnGround2) {
+
+        VerticalVelocity2 = -12.f;
+        IsOnGround2 = false;
+    }
+
+    VerticalVelocity2 += Gravity;
+    Player2.move(0.f, VerticalVelocity2);
+
+    if (Player2.getPosition().y + Player2.getGlobalBounds().height >= window.getSize().y) {
+
+        Player2.setPosition(Player2.getPosition().x, GroundY);
+        IsOnGround2 = true;
+        VerticalVelocity2 = 0.f;
+    }
+
 }
 
 void Draw(RectangleShape &Player1, RectangleShape &Player2, RenderWindow &window){
