@@ -1,46 +1,66 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <random>
-int randomNum;
 using namespace sf;
 
-//variables for player movements 
+//variables for player size and boundaries
+int randomNum; 
 float Gravity = 0.5f;
-float VerticalVelocity1 = 0.f;
-float VerticalVelocity2 = 0.f;
-bool IsOnGround1 = true;
-bool IsOnGround2 = true;
-float GroundY = 630.f;
+float PlayerW = 50.f, PlayerH = 70.f;
+float WindowW = 1000, WindowH = 700;
+float GroundY = 700.f;
+
+// creating a player structure which contains information about each player rather than storing it in individual variables
+struct Player{
+    RectangleShape Body;
+    Vector2f Velocity;
+    Keyboard::Key left, right, jump;
+    bool IsOnGround;
+};
+
+// creating a function which takes in info about the player and assigns them to the structure
+Player MakePlayer(Color color, Vector2f Feet, Keyboard::Key Left, Keyboard::Key Right, Keyboard::Key Jump){
+    Player p;
+    p.Body.setSize(Vector2f(PlayerW, PlayerH));
+    // setting the origin of the player to bottom centre rather than the default (top left)
+    p.Body.setOrigin(Vector2f(PlayerW/2, PlayerH));
+    p.Body.setPosition(Feet);
+    p.Body.setFillColor(color);
+    p.left = Left;
+    p.right = Right;
+    p.jump = Jump;
+    p.IsOnGround = true;
+
+    return p;
+}
 
 // Function used to update player movements according to user input
-void Update(RectangleShape &Player1, RectangleShape &Player2, RenderWindow &window,CircleShape& triangle1);
+void Update(Player &p1, Player &p2, RenderWindow &window, CircleShape &triangle);
 
 // Function used to display the window and players
-void Draw(RectangleShape &Player1, RectangleShape &Player2, RenderWindow &window, CircleShape& triangle1);
+void Draw(RenderWindow &window, Player &p1, Player &p2, CircleShape &triangle);
 
 int main() {
 
-
     // creating a window and player and setting up their dimensions
     RenderWindow window(sf::VideoMode(1000, 700), "Collapse Chase");
-    RectangleShape Player1(Vector2f(50.f, 70.f));
-    RectangleShape Player2(Vector2f(50.f, 70.f));
 
     // Capping the frame rate
     window.setFramerateLimit(60);
 
-    // Setting up initial player position and color
-    Player1.setFillColor(Color::Red);
-    Player1.setPosition(Vector2f(300.f, 620.f));
-    Player2.setFillColor(Color::Blue);
-    Player2.setPosition(Vector2f(600.f, 620.f));
+    // Calling MakePlayer to add the given arguments to the structure of both the players
+    Player player1 = MakePlayer(Color::Red, Vector2f(300.f, GroundY), Keyboard::A, Keyboard::D, Keyboard::W);
+    Player player2 = MakePlayer(Color::Blue, Vector2f(600.f, GroundY), Keyboard::Left, Keyboard::Right, Keyboard::Up);
+    
 
     // creating a triangle above the player to represent tag
-    CircleShape triangle1(20.f, 3);
+    CircleShape triangle(20.f, 3);
 
     //setting up the colour and position of triangle tag
-    triangle1.setFillColor(Color::Green);
-    triangle1.setPosition(500.f, 500.f);
+    triangle.setFillColor(Color::White);
+    triangle.setPosition(500.f, 500.f);
+    // setting origin for allignment
+    triangle.setOrigin(triangle.getLocalBounds().width / 2.f, triangle.getLocalBounds().height / 2.f);
 
     // generating a random number either 1 or 2 so the tag gets assigned to the players at random
     std::mt19937 rng(std::random_device{}());
@@ -62,73 +82,114 @@ int main() {
 
         }
         
-        Update(Player1,Player2, window,triangle1);
-        Draw(Player1,Player2, window,triangle1);
+        Update(player1,player2, window,triangle);
+        Draw(window, player1, player2, triangle);
 
     }
     return 0;
 }
 
-void Update(RectangleShape& Player1, RectangleShape& Player2, RenderWindow& window, CircleShape& triangle1) {
+void Update(Player &p1, Player &p2, RenderWindow &window, CircleShape &triangle) {
 
-    // Checking which key was pressed and if the player is within the boundary of the window
+    // resetting horizontal veolcity to zero to avoid non stop movement
+    p1.Velocity.x = 0.f;
     
-    if (Keyboard::isKeyPressed(Keyboard::A) && Player1.getPosition().x > 0) {
-        Player1.move(-5.f, 0.f);
+    float HalfW = PlayerW / 2.f;
+    
+    // Checking which key was pressed and changing player movement accordingly
+    if (Keyboard::isKeyPressed(p1.left)){
+        p1.Velocity.x = -5.f; 
     }
 
-    if (Keyboard::isKeyPressed(Keyboard::D) && (Player1.getPosition().x + Player1.getGlobalBounds().width) < window.getSize().x) {
-        Player1.move(5.f, 0.f);
+    if (Keyboard::isKeyPressed(p1.right)){
+        p1.Velocity.x = 5.f;
     }
 
-	if (Keyboard::isKeyPressed(Keyboard::W) && IsOnGround1) { // If the player is on the ground and the jump key is pressed, initiate a jump
-        VerticalVelocity1 = -12.f;
-        IsOnGround1 = false;
+    // checking if player is on ground to make sure that only one single jump is made from ground
+    if (Keyboard::isKeyPressed(p1.jump) && p1.IsOnGround){
+        p1.Velocity.y = -12.f;
+        p1.IsOnGround = false;
     }
 
-	//adding constant gravity in vertical velocity in every frame and moving the player downwards according to the velocity
-    VerticalVelocity1 += Gravity;
-    Player1.move(0.f, VerticalVelocity1);// the changing velocity shows a smooth jump
+    // adding a constant value of gravity in each frame to make the player moves down smoothly after jumping
+    p1.Velocity.y += Gravity;
 
-    if (Player1.getPosition().y + Player1.getGlobalBounds().height >= window.getSize().y) {
-        // landing the player to the ground without it falling out of the window
-        Player1.setPosition(Player1.getPosition().x, GroundY);
-        IsOnGround1 = true;
-		VerticalVelocity1 = 0.f; // Resetting the vertical velocity when the player lands on the ground
+    // variable which contain initial positon currently
+    Vector2f pos = p1.Body.getPosition();
+
+    // including vertical and horizontal changes in positon
+    pos += p1.Velocity;
+
+    // checking if player is within left and right boundaries and pushing it back if not
+    if (pos.x - HalfW < 0.f){
+        pos.x = HalfW;
+        p1.Velocity.x = 0.f;
     }
+    
+    if (pos.x + HalfW > window.getSize().x){
+        pos.x = window.getSize().x - HalfW;
+        p1.Velocity.x = 0.f;
+    }
+
+    // making sure the player does not fall below the ground
+    if (pos.y > GroundY){
+        pos.y = GroundY;
+        p1.Velocity.y = 0.f;
+        p1.IsOnGround = true;
+    }
+    
+    // setting the altered position as the new position of the player in each frame
+    p1.Body.setPosition(pos);
   
-  
-    // The same process is repeated for the movement of player 2
-    if (Keyboard::isKeyPressed(Keyboard::Left) && Player2.getPosition().x > 0) {
-        Player2.move(-5.f, 0.f);
+
+    // The same process is repeated for the movement of player 2  
+    p2.Velocity.x = 0.f;
+    
+    if (Keyboard::isKeyPressed(p2.left)){
+        p2.Velocity.x = -5.f; 
+    }
+    if (Keyboard::isKeyPressed(p2.right)){
+        p2.Velocity.x = 5.f;
     }
 
-    if (Keyboard::isKeyPressed(Keyboard::Right) && (Player2.getPosition().x + Player2.getGlobalBounds().width) < window.getSize().x) {
-        Player2.move(5.f, 0.f);
-    }
-    // the same physics is applied to player 2
-    if (Keyboard::isKeyPressed(Keyboard::Up) && IsOnGround2) {
-
-        VerticalVelocity2 = -12.f;
-        IsOnGround2 = false;
+    if (Keyboard::isKeyPressed(p2.jump) && p2.IsOnGround){
+        p2.Velocity.y = -12.f;
+        p2.IsOnGround = false;
     }
 
-    VerticalVelocity2 += Gravity;
-    Player2.move(0.f, VerticalVelocity2);
+    p2.Velocity.y += Gravity;
+    pos = p2.Body.getPosition();
+    pos += p2.Velocity;
 
-    if (Player2.getPosition().y + Player2.getGlobalBounds().height >= window.getSize().y) {
-
-        Player2.setPosition(Player2.getPosition().x, GroundY);
-        IsOnGround2 = true;
-        VerticalVelocity2 = 0.f;
+    if (pos.x - HalfW < 0.f){
+        pos.x = HalfW;
+        p2.Velocity.x = 0.f;
     }
+    
+    if (pos.x + HalfW > window.getSize().x){
+        pos.x = window.getSize().x - HalfW;
+        p2.Velocity.x = 0.f;
+    }
+
+    if (pos.y > GroundY){
+        pos.y = GroundY;
+        p2.Velocity.y = 0.f;
+        p2.IsOnGround = true;
+    }
+
+    p2.Body.setPosition(pos);
+
+
+    // checking where to add the triangle based on the random number generated
     if (randomNum == 1) {
-        triangle1.setPosition(Player1.getPosition().x + 7.f, Player1.getPosition().y - 35.f);
+        triangle.setPosition(p1.Body.getPosition().x , p1.Body.getPosition().y - PlayerH - 15.f);
     }
     else {
-        triangle1.setPosition(Player2.getPosition().x + 7.f, Player2.getPosition().y - 35.f);
+        triangle.setPosition(p2.Body.getPosition().x , p2.Body.getPosition().y - PlayerH - 15.f);
     }
-    if (Player1.getGlobalBounds().intersects(Player2.getGlobalBounds())) {
+
+    // changing the position of the triangle to follow the other player if a collision is detected
+    if (p1.Body.getGlobalBounds().intersects(p2.Body.getGlobalBounds())) {
         if (randomNum == 1) {
             randomNum = 2;
         }
@@ -138,14 +199,14 @@ void Update(RectangleShape& Player1, RectangleShape& Player2, RenderWindow& wind
     }
 }
 
-void Draw(RectangleShape &Player1, RectangleShape &Player2, RenderWindow &window, CircleShape& triangle1){
+void Draw(RenderWindow &window, Player &p1, Player &p2, CircleShape& triangle){
 
-    // adding window color,both players and triangle tag to the screen
+    // adding window color, both players and triangle tag to the screen
     window.clear(Color(0xADD8E6));
-    window.draw(Player1);
+    window.draw(p1.Body);
    
-    window.draw(Player2);
-    window.draw(triangle1);
+    window.draw(p2.Body);
+    window.draw(triangle);
     // displaying final window
     window.display();
 
