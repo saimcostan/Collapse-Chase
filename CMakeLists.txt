@@ -13,12 +13,16 @@ FetchContent_Declare(SFML
 FetchContent_MakeAvailable(SFML)
 
 add_executable(game main.cpp)
+set_property(TARGET game PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 target_link_libraries(game PRIVATE sfml-graphics sfml-window sfml-system)
 
 add_custom_command(TARGET game POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:game>/assets)
-
+add_custom_command(TARGET game POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/level.txt
+        $<TARGET_FILE_DIR:game>/level.txt)
 if(WIN32)
     add_custom_command(TARGET game POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
