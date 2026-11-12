@@ -26,6 +26,16 @@ const int Cols = 40;
 // setting the size of the platform
 const float TileSize = 30.f;
 
+// Variables for the walls used to collapse the screen
+RectangleShape LeftWall;
+RectangleShape RightWall;
+
+float WallWidth = 0.f;
+const float MaxWallWidth = WindowW * 0.25f;
+
+// Speed for the collapsing walls
+float WallSpeed = 0.050f;
+
 char Level[Rows][Cols];
 
 
@@ -40,12 +50,7 @@ struct Player{
 };
 //variable to store the player who is currently "it"
 Player It;
-// creating a platform structure which contains the shape of the platform
-struct Platform {
-    RectangleShape Body;
-};
 
-vector<Platform> Platforms;
 
 // creating a function which takes in info about the player and assigns them to the structure
 Player MakePlayer(Color color, Vector2f Feet, Keyboard::Key Left, Keyboard::Key Right, Keyboard::Key Jump){
@@ -62,6 +67,16 @@ Player MakePlayer(Color color, Vector2f Feet, Keyboard::Key Left, Keyboard::Key 
 
     return p;
 }
+
+//=====================================================================================================
+
+// creating a platform structure which contains the shape of the platform
+struct Platform {
+    RectangleShape Body;
+};
+vector<Platform> Platforms;
+
+
 // for loading the level.txt file that contains the hashes and empty spaces for the platforms
 void LoadLevel()
 {   //opening file that contains the platforms
@@ -139,6 +154,8 @@ void CheckPlatformCollision(Player& p, float PreviousFeetY)
     }
 }
 
+//======================================================================================================
+
 void CheckTag(Player& p1, Player& p2, CircleShape& triangle) {
 
 	//checking if the player is tagged or not and setting triangle position according to it
@@ -166,6 +183,34 @@ void CheckTag(Player& p1, Player& p2, CircleShape& triangle) {
 }
 
 // Function used to update player movements according to user input
+
+//======================================================================================================
+
+void UpdateWalls()
+{
+    // momentarily increase the width of both walls
+    if (WallWidth < MaxWallWidth)
+    {
+        WallWidth += WallSpeed;
+
+        if (WallWidth > MaxWallWidth)
+        {
+            WallWidth = MaxWallWidth;
+        }
+    }
+
+    // accumulating the size of both walls
+    LeftWall.setSize(Vector2f(WallWidth, WindowH));
+    RightWall.setSize(Vector2f(WallWidth, WindowH));
+
+    // Positioning the walls
+    LeftWall.setPosition(0.f, 0.f);
+    RightWall.setPosition(WindowW - WallWidth, 0.f);
+
+    // wall colours
+    LeftWall.setFillColor(Color(80, 80, 80));
+    RightWall.setFillColor(Color(80, 80, 80));
+}
 void Update(Player& p, RenderWindow& window) {
 
 	//boolean variable to check if the player is freezed or not
@@ -201,13 +246,22 @@ void Update(Player& p, RenderWindow& window) {
     pos += p.Velocity;
     // checking if player is within left and right boundaries and pushing it back if not
     p.IsOnGround = false;
-    if (pos.x - HalfW < 0.f) {
-        pos.x = HalfW;
+
+    // current limits of the playable area
+    float LeftBoundary = WallWidth;
+    float RightBoundary = WindowW - WallWidth;
+
+    // limiting player from crossing the left wall
+    if (pos.x - HalfW < LeftBoundary)
+    {
+        pos.x = LeftBoundary + HalfW;
         p.Velocity.x = 0.f;
     }
 
-    if (pos.x + HalfW > window.getSize().x) {
-        pos.x = window.getSize().x - HalfW;
+    // limiting player from crossing the right wall
+    if (pos.x + HalfW > RightBoundary)
+    {
+        pos.x = RightBoundary - HalfW;
         p.Velocity.x = 0.f;
     }
     // making sure the player does not fall below the ground
@@ -222,6 +276,9 @@ void Update(Player& p, RenderWindow& window) {
     CheckPlatformCollision(p, PreviousFeetY);
 
 }
+
+//======================================================================================================
+
 // displays the timer and the end result of the game on the screen
 void DrawText(RenderWindow& window, const string& ThisString, int Size, float XPos, float YPos, Color ThisCol) {
 
@@ -243,6 +300,11 @@ void Draw(RenderWindow& window, Player& p1, Player& p2, CircleShape& triangle, v
     {
         window.draw(Platforms[i].Body);
     }
+
+    // Drawing the collapsing walls
+    window.draw(LeftWall);
+    window.draw(RightWall);
+
     window.draw(p1.Body);
 
     window.draw(p2.Body);
@@ -269,6 +331,8 @@ void Draw(RenderWindow& window, Player& p1, Player& p2, CircleShape& triangle, v
     window.display();
 
 }
+
+//======================================================================================================
 
 int main() {
 
@@ -322,6 +386,9 @@ int main() {
         }
 		// checking if the game is over or not
         if (!GameOver) {
+
+            // Updating the collapsing walls
+            UpdateWalls();
 
             RemainingTime--;
             if (RemainingTime <= 0) {
