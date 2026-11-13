@@ -1,20 +1,46 @@
-Our game idea takes inspiration from the game “tag” developed by Jet games. 
-The games give options to play as 2 player where one of the players, at random, is picked as that “tagged” and chases the others to tag them. 
-This goes on until the map either shrinks, or a time limit is achieved.
+# Collapse Chase
 
-The game has gone through a number of stages and amendments as the game development progressed.
-First of all Saim Rashid has created a basic SFML window opening code that displays a simple window on the screen. This was followed by adding a CMakeLists.txt file which solved the compatibility issues within VS code and Visual Studio so that all the contributors can be able to push features in the game. After that he added a player character in the form of a rectangle shape which can move up, left and right using W, A and D, all while staying within the boundary of the window. Two new functions named as Update and Draw were created to be called from the main function. 
+Collapse Chase is a two-player chase game written in C++ with SFML. One player is "It" and has to tag the other before time runs out, while the walls of the arena slowly close in. It's inspired by the game Tag by Jet Games.
 
-After that Ammad-uddin created a second player in form of different coloured rectangle that can also move up left and right but with the help of Up, Left and Right arrow keys and restricting it within the boundary of the window. This was done within the Update function.
+## How it works
 
-Later, Narmeen Bajwa implemented the concept of gravity for the movement of both players. This was done by adding a constant value of gravity to the vertical velocity of the player in each frame from the moment the user enters a key to move upward. This ensures that the user can see a smooth jump like a projectile in real world. The player is restricted to jump only while standing on the ground to make it more realistic.  
+When a match starts, one player is picked at random to be "It". A triangle above their head shows who holds the tag. If "It" touches the other player, the tag passes over and the triangle moves with it. The newly tagged player is frozen for a moment so the other one has time to run.
 
-Then Ammad created a triangle shape that represents that which player is currently “It”. This is based on random selection at the start of the game and the triangle will move to the other player whenever the players intersect each other.
+The match ends when the timer hits zero, and the screen shows who lost. Meanwhile the walls keep moving inward, so the space gets smaller the longer you play.
 
-After this, Saim changed most of the structure of the game code by adding the concept of structs to the players so that repeated variables and duplicated code can be avoided. All the characteristics of the player are added under one struct. A MakePlayer function was made so that the variables in player struct can be assigned values according to the player being made in the main function. The update function was altered accordingly to maintain the same player movements. 
+## Controls
 
-Later Ammad created a text file that would load a level which had platforms within it. A platform struct was made and other functions were added like LoadLevel, CreatePlatform and CheckPlatformCollision. The players were now able to land on platforms.
+- Player 1: W to jump, A to move left, D to move right
+- Player 2: Up arrow to jump, Left and Right arrows to move
 
-Then Narmeen added a timer that would display at the top and when it runs out the game ends and the player who is lost is displayed at the end. An arial font was added for the timer and end result text. A player freeze concept was also implemented so that the other player has enough time to escape before getting instantly tagged again.
+You can only jump while standing on the ground or a platform.
 
-After that, Ammad added the feature of collapsing walls that come closer slowly as the game continues. The Update function was altered so that the players cannot go past the walls. This increased difficulty and made the game even more interesting.
+## How we built it
+
+The game came together in stages, each one adding something new.
+
+1. **Window and first player (Saim Rashid).** A basic SFML window, a CMake setup that works in both VS Code and Visual Studio, and a rectangle player moving with W, A and D inside the window. Update and Draw functions were added to keep logic and rendering separate.
+2. **Second player (Ammad-uddin).** A second, differently coloured rectangle controlled with the arrow keys, also kept inside the window.
+3. **Gravity (Narmeen Bajwa).** Gravity was added to both players, so jumps follow a smooth arc. Jumping is only allowed from the ground.
+4. **The "It" marker (Ammad-uddin).** A triangle showing who is "It", chosen randomly at the start and switched whenever the players touch.
+5. **Code cleanup (Saim Rashid).** Player data was grouped into a single struct, with a MakePlayer function to set each one up. This removed duplicated code without changing how the game plays.
+6. **Levels and platforms (Ammad-uddin).** Levels are loaded from a text file and contain platforms that players can land on.
+7. **Timer and freeze (Narmeen Bajwa).** A countdown timer at the top, an end screen showing the loser, and the freeze after a tag. An Arial font was added for the text.
+8. **Collapsing walls (Ammad-uddin).** Walls that close in over time, with players unable to move past them.
+
+## Tech
+
+C++, SFML and CMake. It builds in both VS Code and Visual Studio.
+
+## Building
+
+You need a C++ compiler, CMake and SFML installed.
+
+```
+git clone https://github.com/saimcostan/Collapse-Chase.git
+cd Collapse-Chase
+cmake -S . -B build
+cmake --build build
+```
+
+Then run the executable from the build folder.
