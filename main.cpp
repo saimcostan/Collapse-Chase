@@ -11,7 +11,7 @@ using namespace std;
 //variables for player size and boundaries
 int randomNum; 
 float Gravity = 0.5f;
-float PlayerW = 50.f, PlayerH = 70.f;
+float PlayerW = 60.f, PlayerH = 70.f;
 float WindowW = 1200, WindowH = 810;
 float GroundY = 810.f;
 int FreezeTime = 90;
@@ -51,6 +51,7 @@ int CountDownFrames = 0;
 // creating a player structure which contains information about each player rather than storing it in individual variables
 struct Player{
     RectangleShape Body;
+    Sprite Visual;
     Vector2f Velocity;
     Keyboard::Key left, right, jump;
     bool IsOnGround;
@@ -59,28 +60,53 @@ struct Player{
 
 
 // creating a function which takes in info about the player and assigns them to the structure
-Player MakePlayer(Color color, Vector2f Feet, Keyboard::Key Left, Keyboard::Key Right, Keyboard::Key Jump){
+Player MakePlayer(Texture& texture, Vector2f Feet,
+    Keyboard::Key Left, Keyboard::Key Right, Keyboard::Key Jump)
+{
     Player p;
-    p.Body.setSize(Vector2f(PlayerW, PlayerH));
-    // setting the origin of the player to bottom centre rather than the default (top left)
-    p.Body.setOrigin(Vector2f(PlayerW/2, PlayerH));
+
+    // Invisible rectangle hitbox
+    p.Body.setSize(Vector2f(PlayerW-5.f, PlayerH));
+    p.Body.setOrigin(PlayerW / 2.f, PlayerH);
     p.Body.setPosition(Feet);
-    p.Body.setFillColor(color);
+    p.Body.setFillColor(Color::Transparent);
+
+    // Visible player sprite
+    p.Visual.setTexture(texture);
+
+    // Make sprite the same size as the old rectangle
+    p.Visual.setScale(
+        PlayerW / texture.getSize().x,
+        PlayerH / texture.getSize().y
+    );
+
+    // Align sprite bottom-centre with the rectangle bottom-centre
+    p.Visual.setOrigin(
+        texture.getSize().x / 2.f,
+        texture.getSize().y
+    );
+
+    p.Visual.setPosition(Feet);
+
     p.left = Left;
     p.right = Right;
     p.jump = Jump;
+
     p.IsOnGround = true;
 
     return p;
 }
-
+Texture Player1Texture;
+Texture Player2Texture;
 //=====================================================================================================
 
 // creating a platform structure which contains the shape of the platform
 struct Platform {
-    RectangleShape Body;
+    Sprite Body;
 };
 vector<Platform> Platforms;
+
+Texture PlatformTexture;
 
 
 // for loading the level.txt file that contains the hashes and empty spaces for the platforms
@@ -120,11 +146,15 @@ void CreatePlatforms()
             {
                 Platform p;
 
-                p.Body.setSize(Vector2f(TileSize, TileSize));
+                p.Body.setTexture(PlatformTexture);
 
                 p.Body.setPosition(j * TileSize, i * TileSize);
 
-                p.Body.setFillColor(Color::Green);
+                // Resize sprite to match your existing platform tile size
+                p.Body.setScale(
+                    TileSize / PlatformTexture.getSize().x,
+                    TileSize / PlatformTexture.getSize().y
+                );
 
                 Platforms.push_back(p);
             }
@@ -224,8 +254,8 @@ void UpdateWalls()
 void ResetGame(Player &p1, Player &p2){
 
     // using MakePlayer to pass values to each characteristic of the player struct according to each player
-    p1 = MakePlayer(Color::Red, Vector2f(300.f, GroundY), Keyboard::A, Keyboard::D, Keyboard::W);
-    p2 = MakePlayer(Color::Blue, Vector2f(600.f, GroundY), Keyboard::Left, Keyboard::Right, Keyboard::Up);
+    p1 = MakePlayer(Player1Texture, Vector2f(300.f, GroundY),Keyboard::A, Keyboard::D, Keyboard::W);
+    p2 = MakePlayer(Player2Texture, Vector2f(600.f, GroundY),Keyboard::Left, Keyboard::Right, Keyboard::Up);
 
     // random number generation for starting tag assignment
     std::mt19937 rng(std::random_device{}());
@@ -305,8 +335,12 @@ void Update(Player& p, RenderWindow& window) {
     }
 
     p.Body.setPosition(pos);
+
     // calling the function by passing player and their previous feet
     CheckPlatformCollision(p, PreviousFeetY);
+
+    // Keeping the visible sprite aligned with the invisible rectangle
+    p.Visual.setPosition(p.Body.getPosition());
 
 }
 
@@ -337,10 +371,9 @@ void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triang
     window.draw(LeftWall);
     window.draw(RightWall);
 
-    // drawing the bodies of both the players
-    window.draw(p1.Body);
-
-    window.draw(p2.Body);
+    // drawing the visuals of both the players
+    window.draw(p1.Visual);
+    window.draw(p2.Visual);
 
     // checking the tagged player and drawing triangle tag according to it
     Vector2f Feet;
@@ -350,7 +383,7 @@ void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triang
     else{
         Feet = p2.Body.getPosition();
     }
-    triangle.setPosition(Feet.x, Feet.y - PlayerH - 15.f);
+    triangle.setPosition(Feet.x - 3/2.f, Feet.y - PlayerH - 14.f);
     window.draw(triangle);
 
 	// displaying the timer on the Play screen
@@ -369,7 +402,28 @@ int main() {
     window.setFramerateLimit(60);
 
     LoadLevel();
+
+    // Loading platform sprite
+    if (!PlatformTexture.loadFromFile("assets/terrain_grass_block.png")) {
+        cout << "Could not load platform.png" << endl;
+        return 1;
+    }
+
     CreatePlatforms();
+
+    // Loading Player 1 sprite
+    if (!Player1Texture.loadFromFile("assets/red sprite.png"))
+    {
+        cout << "Could not load Player 1 texture" << endl;
+        return 1;
+    }
+
+    // Loading Player 2 sprite
+    if (!Player2Texture.loadFromFile("assets/blue sprite.png"))
+    {
+        cout << "Could not load Player 2 texture" << endl;
+        return 1;
+    }
 
 	//checking if the font file is loaded or not
     if (!GameFont.loadFromFile("arial.ttf")) {
@@ -489,26 +543,22 @@ int main() {
                 // storing name and displaying the player who lost
                 if (randomNum == 1){ 
                     Name = "RED";
-                    // increasing the size for the end
-                    player1.Body.setSize(Vector2f(PlayerW * 2.5 , PlayerH * 2.5));
-                    player1.Body.setPosition(WindowW/2.f - 50.f, 200);
-                    // storing position for the triangle
-                    Feet = player1.Body.getPosition();
-                    window.draw(player1.Body);
+                    player1.Visual.setScale(PlayerW * 2.5f / Player1Texture.getSize().x,PlayerH * 2.5f / Player1Texture.getSize().y);
+
+                    player1.Visual.setPosition(WindowW / 2.f , 300);
+                    Feet = player1.Visual.getPosition();
+                    window.draw(player1.Visual);
                 }
                 else{
                     // same process for the other player
                     Name = "BLUE";
-                    player2.Body.setSize(Vector2f(PlayerW * 2.5 , PlayerH * 2.5));
-                    player2.Body.setPosition(WindowW/2.f - 50.f, 200);
-                    Feet = player2.Body.getPosition();
-                    window.draw(player2.Body);
+                    player2.Visual.setScale(PlayerW * 2.5f / Player2Texture.getSize().x,PlayerH * 2.5f / Player2Texture.getSize().y);
+                    player2.Visual.setPosition(WindowW / 2.f, 300);
+                    Feet = player2.Visual.getPosition();
+                    window.draw(player2.Visual);
                 }
 
-                // displaying the larger triangle and positioning according to Feet
-                triangle.setRadius(60);
-                triangle.setPosition(Feet.x - 4.f, Feet.y - PlayerH * 2 - 8.f);
-                window.draw(triangle);
+                
                 
                 // Final result text
                 DrawText(window, Name + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
