@@ -35,6 +35,27 @@ const float MaxWallWidth = WindowW * 0.25f;
 // Speed for the collapsing walls
 float WallSpeed = 0.050f;
 
+//variables for the portals and jumppad
+float PortalW = 40.f, PortalH = 80.f;
+int PortalLockFrames = 180;
+int PortalLock = 0;
+
+Vector2f PortalPos1(350.f, 210.f);
+Vector2f PortalPos2(750.f, 690.f);
+
+Texture PortalTex1;
+Texture PortalTex2;
+
+Sprite Portal1, Portal2;
+
+float JumpPadW = 50.f, JumpPadH = 35.f;
+float HighJumpForce = -20.f;
+
+Vector2f JumpPadPos(520.f, GroundY);
+
+Texture JumpPadTex;
+Sprite JumpPad;
+
 char Level[Rows][Cols];
 
 // Diferent game states with 1 of 4 active at a time
@@ -193,6 +214,7 @@ void CheckPlatformCollision(Player& p, float PreviousFeetY)
 
 //======================================================================================================
 
+// function to check if the players are tagged or not and freezing the player who just got tagged
 void CheckTag(Player& p1, Player& p2) {
 
     // variable to store freeze time of each player
@@ -253,9 +275,12 @@ void UpdateWalls()
 // gives a fresh start if the user wants to go for another match within the same window running
 void ResetGame(Player &p1, Player &p2){
 
+	// unlocking the portal at the start of the game
+    PortalLock = 0;
+
     // using MakePlayer to pass values to each characteristic of the player struct according to each player
     p1 = MakePlayer(Player1Texture, Vector2f(300.f, GroundY),Keyboard::A, Keyboard::D, Keyboard::W);
-    p2 = MakePlayer(Player2Texture, Vector2f(600.f, GroundY),Keyboard::Left, Keyboard::Right, Keyboard::Up);
+    p2 = MakePlayer(Player2Texture, Vector2f(750.f, GroundY),Keyboard::Left, Keyboard::Right, Keyboard::Up);
 
     // random number generation for starting tag assignment
     std::mt19937 rng(std::random_device{}());
@@ -274,11 +299,61 @@ void ResetGame(Player &p1, Player &p2){
 
 }
 
+void CheckPortals(Player& p) {
+
+    //checking if the portal is locked or the player is freezed
+    if (PortalLock > 0) {
+        return;
+    }
+
+    if (p.Freezed > 0) {
+        return;
+    }
+
+	//checking if the player is intersecting with any of the portals and teleporting them to the other portal
+    if (Portal1.getGlobalBounds().intersects(p.Body.getGlobalBounds())) {
+
+        p.Body.setPosition(PortalPos2);
+        p.Velocity.y = 0.f;
+        PortalLock = PortalLockFrames;
+    }
+    else if (Portal2.getGlobalBounds().intersects(p.Body.getGlobalBounds())) {
+
+        p.Body.setPosition(PortalPos1);
+        p.Velocity.y = 0.f;
+        PortalLock = PortalLockFrames;
+    }
+}
+//======================================================================================================
+
+void CheckJumpPad(Player& p, float PreviousFeetY) {
+	//variables for storing the bounds of the jump pad and player
+    FloatRect PadBounds = JumpPad.getGlobalBounds();
+    FloatRect PlayerBounds = p.Body.getGlobalBounds();
+    //checking if the player is landing on the jumppad and then giving it jump boost
+    if (PlayerBounds.intersects(PadBounds)) {
+
+        if (p.Velocity.y >= 0 && PreviousFeetY <= PadBounds.top + 10.f) {
+
+            p.Body.setPosition(p.Body.getPosition().x, PadBounds.top);
+
+            p.Velocity.y = HighJumpForce;
+            p.IsOnGround = false;
+        }
+    }
+}
+
 void Update(Player& p, RenderWindow& window) {
 
 	//boolean variable to check if the player is freezed or not
     bool CanMove = true;
+
+    //resetting the player to full opacity 
+    p.Visual.setColor(Color(255, 255, 255, 255));
+
     if (p.Freezed > 0) {
+		// reducing the opacity of the player to show that it is freezed
+        p.Visual.setColor(Color(255, 255, 255, 80));
         p.Freezed--;
         CanMove = false;
     }
@@ -338,6 +413,10 @@ void Update(Player& p, RenderWindow& window) {
 
     // calling the function by passing player and their previous feet
     CheckPlatformCollision(p, PreviousFeetY);
+    //checking portal and jumppad 
+    CheckPortals(p);
+
+    CheckJumpPad(p, PreviousFeetY);
 
     // Keeping the visible sprite aligned with the invisible rectangle
     p.Visual.setPosition(p.Body.getPosition());
@@ -366,6 +445,20 @@ void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triang
     {
         window.draw(Platforms[i].Body);
     }
+	//changing opacity according to the portal lock and drawing the portals
+    if (PortalLock == 0) {
+        Portal1.setColor(Color(255, 255, 255, 255));
+        Portal2.setColor(Color(255, 255, 255, 255));
+    }
+    else {
+        Portal1.setColor(Color(255, 255, 255, 80));
+        Portal2.setColor(Color(255, 255, 255, 80));
+    }
+
+    window.draw(Portal1);
+    window.draw(Portal2);
+
+    window.draw(JumpPad);
 
     // Drawing the collapsing walls
     window.draw(LeftWall);
@@ -393,6 +486,31 @@ void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triang
 
 //======================================================================================================
 
+void SetupPortals(Sprite& ThisPortal, Vector2f PortalPos) {
+
+
+    ThisPortal.setOrigin(PortalTex1.getSize().x / 2, PortalTex1.getSize().y);
+    ThisPortal.setScale(
+        PortalW / PortalTex1.getSize().x,
+        PortalH / PortalTex1.getSize().y
+    );
+
+    ThisPortal.setPosition(PortalPos);
+}
+
+void SetupJumpPad(Sprite& JumpPad, Vector2f JumpPadPos) {
+
+    JumpPad.setTexture(JumpPadTex);
+
+    JumpPad.setOrigin(JumpPadTex.getSize().x / 2.f, JumpPadTex.getSize().y);
+    JumpPad.setScale(
+        JumpPadW / JumpPadTex.getSize().x,
+        JumpPadH / JumpPadTex.getSize().y
+    );
+
+    JumpPad.setPosition(JumpPadPos);
+}
+
 int main() {
 
     // creating a window and player and setting up their dimensions
@@ -410,6 +528,32 @@ int main() {
     }
 
     CreatePlatforms();
+    //chedcking if the portal images are loaded or not
+    if (!PortalTex1.loadFromFile("assets/portal right.png")) {
+
+        cout << "ERROR! Could not load portal right.png";
+        return 0;
+    }
+
+    if (!PortalTex2.loadFromFile("assets/portal left.png")) {
+
+        cout << "ERROR! Could not load portal left.png";
+        return 0;
+    }
+	//setting the texture of the portal according to the image loaded and calling the setup function to set the position and size of the portal
+    Portal1.setTexture(PortalTex1);
+    Portal2.setTexture(PortalTex2);
+
+    SetupPortals(Portal1, PortalPos1);
+    SetupPortals(Portal2, PortalPos2);
+	// checking if the jump pad image is loaded or not
+    if (!JumpPadTex.loadFromFile("assets/Jump Pad.png")) {
+
+        cout << "ERROR! Could not load Jump Pad.png";
+        return 0;
+    }
+	// setting the texture of the jump pad according to the image loaded and calling the setup function to set the position and size of the jump pad
+    SetupJumpPad(JumpPad, JumpPadPos);
 
     // Loading Player 1 sprite
     if (!Player1Texture.loadFromFile("assets/red sprite.png"))
@@ -494,6 +638,11 @@ int main() {
             // starting will shrinking once in play state and decreasing game time each second
             UpdateWalls();
             RemainingTime--;
+
+			// reducing the portal lock time each second if it is greater than zero
+            if (PortalLock > 0) {
+                PortalLock--;
+            }
 
             // calling update for player movements
             Update(player1, window);
