@@ -59,7 +59,7 @@ Sprite JumpPad;
 char Level[Rows][Cols];
 
 // Diferent game states with 1 of 4 active at a time
-enum class Screen{Menu, CountDown, Play, End};
+enum class Screen{Menu, Select, CountDown, Play, End};
 
 // initially the winsow should start from the menu screen 
 Screen CurrentScreen = Screen::Menu;
@@ -79,6 +79,13 @@ struct Player{
     int Freezed = 0;
 };
 
+Texture PlayerTextures[3]; // array to store player textures
+string PlayerNames[] = {"RED", "BLUE", "GREEN"}; // array to store player names for end result
+string PlayerFiles[] = {"assets/red sprite.png", "assets/blue sprite.png", "assets/green sprite.png"}; // names of files for each player sprite
+
+Player Players[3]; // array to store players themselves
+int PlayerCount = 2;// default number of players which can be changed in Select Screen
+int It = 0; // Decides who will be It first
 
 // creating a function which takes in info about the player and assigns them to the structure
 Player MakePlayer(Texture& texture, Vector2f Feet,
@@ -117,8 +124,6 @@ Player MakePlayer(Texture& texture, Vector2f Feet,
 
     return p;
 }
-Texture Player1Texture;
-Texture Player2Texture;
 //=====================================================================================================
 
 // creating a platform structure which contains the shape of the platform
@@ -215,29 +220,24 @@ void CheckPlatformCollision(Player& p, float PreviousFeetY)
 //======================================================================================================
 
 // function to check if the players are tagged or not and freezing the player who just got tagged
-void CheckTag(Player& p1, Player& p2) {
-
-    // variable to store freeze time of each player
-    int ItFreeze;
-	//checking if the player is tagged or not and storing freeze time of the tagged player
-    if (randomNum == 1) {
-        ItFreeze = p1.Freezed;
-    }
-    else {
-        ItFreeze = p2.Freezed;
+void CheckTag() {
+    // checking if the tagged player is currently freezed or not
+    if (Players[It].Freezed > 0){
+        return;
     }
 
-    //checking if players can tag each other or not and freezing the player who just got tagged
-    if (ItFreeze <= 0) {
-        if (p1.Body.getGlobalBounds().intersects(p2.Body.getGlobalBounds())) {
-            if (randomNum == 1) {
-                randomNum = 2;
-                p2.Freezed = FreezeTime;
-            }
-            else {
-                randomNum = 1;
-                p1.Freezed = FreezeTime;
-            }
+    // looping through all players to check tag
+    for (int i = 0; i < PlayerCount; i++){
+        // a player cannnot tag itself
+        if (i == It){
+            continue;
+        }
+        // checking if players tagged each other and freezing the player who just got tagged
+        if (Players[It].Body.getGlobalBounds().intersects(Players[i].Body.getGlobalBounds())){
+
+            It = i;
+            Players[It].Freezed = FreezeTime;
+            break;
         }
     }
 }
@@ -273,19 +273,21 @@ void UpdateWalls()
 }
 
 // gives a fresh start if the user wants to go for another match within the same window running
-void ResetGame(Player &p1, Player &p2){
+void ResetGame(){
 
 	// unlocking the portal at the start of the game
     PortalLock = 0;
 
     // using MakePlayer to pass values to each characteristic of the player struct according to each player
-    p1 = MakePlayer(Player1Texture, Vector2f(300.f, GroundY),Keyboard::A, Keyboard::D, Keyboard::W);
-    p2 = MakePlayer(Player2Texture, Vector2f(750.f, GroundY),Keyboard::Left, Keyboard::Right, Keyboard::Up);
+    Players[0] = MakePlayer(PlayerTextures[0], Vector2f(300.f, GroundY),Keyboard::A, Keyboard::D, Keyboard::W);
+    Players[1] = MakePlayer(PlayerTextures[1], Vector2f(750.f, GroundY),Keyboard::Left, Keyboard::Right, Keyboard::Up);
+    Players[2] = MakePlayer(PlayerTextures[2], Vector2f(1000.f, GroundY),Keyboard::J, Keyboard::L, Keyboard::I);
+
 
     // random number generation for starting tag assignment
     std::mt19937 rng(std::random_device{}());
-    std::uniform_int_distribution<int> dist(1, 2);
-    randomNum = dist(rng);
+    std::uniform_int_distribution<int> dist(0, PlayerCount - 1);// choosing random number according to player count
+    It = dist(rng);
     // The game starts with the total time of the game
     RemainingTime = MatchTime;
 
@@ -437,7 +439,7 @@ void DrawText(RenderWindow& window, const string& ThisString, int Size, float XP
 }
 
 // Function used to display the Play screen and everything it includes
-void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triangle) {
+void DrawWorld(RenderWindow& window, CircleShape& triangle) {
 
 
     // drawing each platform
@@ -464,18 +466,14 @@ void DrawWorld(RenderWindow& window, Player& p1, Player& p2, CircleShape& triang
     window.draw(LeftWall);
     window.draw(RightWall);
 
-    // drawing the visuals of both the players
-    window.draw(p1.Visual);
-    window.draw(p2.Visual);
+    // drawing the visuals of the players
+    for (int i = 0; i < PlayerCount; i++){
+        window.draw(Players[i].Visual);
+    }
 
     // checking the tagged player and drawing triangle tag according to it
-    Vector2f Feet;
-    if (randomNum == 1){
-        Feet = p1.Body.getPosition();
-    }
-    else{
-        Feet = p2.Body.getPosition();
-    }
+    Vector2f Feet = Players[It].Body.getPosition();
+    
     triangle.setPosition(Feet.x - 3/2.f, Feet.y - PlayerH - 14.f);
     window.draw(triangle);
 
@@ -555,18 +553,13 @@ int main() {
 	// setting the texture of the jump pad according to the image loaded and calling the setup function to set the position and size of the jump pad
     SetupJumpPad(JumpPad, JumpPadPos);
 
-    // Loading Player 1 sprite
-    if (!Player1Texture.loadFromFile("assets/red sprite.png"))
-    {
-        cout << "Could not load Player 1 texture" << endl;
-        return 1;
-    }
+    // checking if the image of each player is loaded or not
+    for (int i = 0; i < 3; i++){
+        if (!PlayerTextures[i].loadFromFile(PlayerFiles[i])){
 
-    // Loading Player 2 sprite
-    if (!Player2Texture.loadFromFile("assets/blue sprite.png"))
-    {
-        cout << "Could not load Player 2 texture" << endl;
-        return 1;
+            cout << "ERROR! Could not load " << PlayerFiles[i] << endl;
+            return 0;
+        }
     }
 
 	//checking if the font file is loaded or not
@@ -575,9 +568,7 @@ int main() {
         return 1;
     }
 
-    // declaring to players and passing them to reset game
-    Player player1, player2;
-    ResetGame(player1, player2);
+    ResetGame();
 
     // creating a triangle above the player to represent tag
     CircleShape triangle(20.f, 3);
@@ -611,13 +602,31 @@ int main() {
                         CurrentScreen = Screen::Menu;
                     }
                 }
-                // if Enter key is pressed in Menu or End screens then moves to CountDown screen and starts a new game
-                if ((event.key.code == Keyboard::Enter) && (CurrentScreen == Screen::Menu || CurrentScreen == Screen::End)){
+                // if Enter key is pressed in Menu then moves to Select screen
+                if ((event.key.code == Keyboard::Enter)){
 
-                    ResetGame(player1, player2);
+                    if (CurrentScreen == Screen::Menu){
+
+                        CurrentScreen = Screen::Select;
+                    }
+                    // if Enter pressed in Select or End then moves to a new game
+                    else if (CurrentScreen == Screen::Select || CurrentScreen == Screen::End){
+
+                    ResetGame();
                     // 3 sec countdown starts before the actual game starts
                     CurrentScreen = Screen::CountDown;
                     CountDownFrames = CountDownTime;
+                    }
+                }
+                // switching PlayerCount for a game in Select with left and right Arrow keys
+                if (CurrentScreen == Screen::Select){
+
+                    if (event.key.code == Keyboard::Left){
+                        PlayerCount = 2;
+                    }
+                    else if (event.key.code == Keyboard::Right){
+                        PlayerCount = 3;
+                    }
                 }
             }
 
@@ -645,11 +654,12 @@ int main() {
             }
 
             // calling update for player movements
-            Update(player1, window);
-            Update(player2, window);
-
-            // checking tag between both players
-            CheckTag(player1, player2);
+            for (int i = 0; i < PlayerCount; i++){
+                
+                Update(Players[i], window);
+            }
+            // checking tag between players
+            CheckTag();
 
             // moving to End screen once remaining time hits zero
             if (RemainingTime <= 0){
@@ -669,9 +679,51 @@ int main() {
             DrawText(window, "RED:  A D W    BLUE:  Arrow keys", 40, WindowW/2.f, 550.f, Color::White);
             DrawText(window, "Press ESC to quit", 40, WindowW/2.f, 650.f, Color::White);
         }
+        else if (CurrentScreen == Screen::Select){
+            // Title display that asks to choose 2 or 3 player game
+            DrawText(window, "CHOOSE PLAYERS", 100, WindowW / 2.f, 200.f, Color::White);
+
+            for (int n = 2; n <= 3; n++){
+
+                float x; // positioning for display between the two options
+                if (n == 2){
+                    x = WindowW / 2.f - 200.f;
+                }
+                else{
+                    x= WindowW / 2.f + 200.f;
+                }
+                // Box for each option 
+                RectangleShape Box(Vector2f(300.f, 160.f));
+                Box.setOrigin(150.f, 80.f);
+                Box.setPosition(x, 400.f);
+                Box.setOutlineThickness(5.f);
+
+                // highligting the box thats currently chosen
+                if (n == PlayerCount){
+                    Box.setFillColor(Color(255,255,255,90));
+                    Box.setOutlineColor(Color::Yellow);
+                }
+                else{
+                    Box.setFillColor(Color(0,0,0,60));
+                    Box.setOutlineColor(Color::White);
+                }
+                window.draw(Box);
+                // text to show in the box for options
+                DrawText(window, to_string(n)+" PLAYERS", 50, x, 400.f, Color::White);   
+            }
+            // Controls display according to the number of players
+            string Controls = "RED: A D W     BLUE: Arrow keys";
+            if (PlayerCount == 3){
+                Controls = Controls + "     GREEN: J L I";
+            }
+            DrawText(window, Controls, 36, WindowW / 2.f, 560.f, Color::White);
+            // Text to show options to navigate
+            DrawText(window, "Left and Right Arrow keys to Choose        ENTER to start      ESC to back", 36, WindowW / 2.f, 680.f, Color::White);
+        }
+
         else{
             // loading all the players and platforms
-            DrawWorld(window, player1, player2, triangle);
+            DrawWorld(window, triangle);
 
             // showing the countdown timer in the middle of the screen
             if (CurrentScreen == Screen::CountDown){
@@ -684,33 +736,15 @@ int main() {
                 EndBackground.setFillColor(Color(0, 191, 255));
                 window.draw(EndBackground);
             
-                // used for the triangle positioning to display at the end
-                Vector2f Feet;
-
-                // name of the player who remained tag at the end
-                string Name;
-                // storing name and displaying the player who lost
-                if (randomNum == 1){ 
-                    Name = "RED";
-                    player1.Visual.setScale(PlayerW * 2.5f / Player1Texture.getSize().x,PlayerH * 2.5f / Player1Texture.getSize().y);
-
-                    player1.Visual.setPosition(WindowW / 2.f , 300);
-                    Feet = player1.Visual.getPosition();
-                    window.draw(player1.Visual);
-                }
-                else{
-                    // same process for the other player
-                    Name = "BLUE";
-                    player2.Visual.setScale(PlayerW * 2.5f / Player2Texture.getSize().x,PlayerH * 2.5f / Player2Texture.getSize().y);
-                    player2.Visual.setPosition(WindowW / 2.f, 300);
-                    Feet = player2.Visual.getPosition();
-                    window.draw(player2.Visual);
-                }
-
-                
+                Vector2u ts = PlayerTextures[It].getSize(); // storing player texture size
+                // positioning loser player
+                Players[It].Visual.setScale(PlayerW * 2.5f / ts.x, PlayerH * 2.5 / ts.y);
+                Players[It].Visual.setPosition(WindowW / 2.f, 300.f);
+                Players[It].Visual.setColor(Color::White); // turning back to full opacity if the player was freezed at the end
+                window.draw(Players[It].Visual);
                 
                 // Final result text
-                DrawText(window, Name + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
+                DrawText(window, PlayerNames[It] + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
                 // options for user to enter
                 DrawText(window, "ENTER = play again    ESC = menu", 40, WindowW/2.f, 500.f, Color::White);
                 
