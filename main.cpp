@@ -11,11 +11,11 @@ using namespace std;
 //variables for player size and boundaries
 int randomNum; 
 float Gravity = 0.5f;
-float PlayerW = 60.f, PlayerH = 70.f;
+float PlayerW = 50.f, PlayerH = 60.f;
 float WindowW = 1200, WindowH = 810;
 float GroundY = 810.f;
 int FreezeTime = 90;
-int MatchTime = 90 * 60;
+int MatchTime = 60 * 60;
 int RemainingTime = MatchTime;
 Font GameFont;
 
@@ -26,8 +26,9 @@ const int Cols = 40;
 const float TileSize = 30.f;
 
 // Variables for the walls used to collapse the screen
-RectangleShape LeftWall;
-RectangleShape RightWall;
+Texture WallTex;
+Sprite LeftWall;
+Sprite RightWall;
 
 float WallWidth = 0.f;
 const float MaxWallWidth = WindowW * 0.25f;
@@ -133,6 +134,10 @@ struct Platform {
 vector<Platform> Platforms;
 
 Texture PlatformTexture;
+
+// background image used during the game
+Texture GameBgTex;
+Sprite GameBg;
 
 
 // for loading the level.txt file that contains the hashes and empty spaces for the platforms
@@ -259,17 +264,20 @@ void UpdateWalls()
         }
     }
 
-    // accumulating the size of both walls
-    LeftWall.setSize(Vector2f(WallWidth, WindowH));
-    RightWall.setSize(Vector2f(WallWidth, WindowH));
+    // width of the image and the current wall width in whole pixels
+    int TexW = (int)WallTex.getSize().x;
+    int W = (int)WallWidth;
+
+    // right wall shows the LEFT part of the image (its inner edge is the image's left side)
+    RightWall.setTextureRect(IntRect(0, 0, W, (int)WindowH));
+
+    // left wall shows the RIGHT part of the image (its inner edge is the image's right side)
+    // so the image travels with the wall as it grows inward
+    LeftWall.setTextureRect(IntRect(TexW - W, 0, W, (int)WindowH));
 
     // Positioning the walls
     LeftWall.setPosition(0.f, 0.f);
-    RightWall.setPosition(WindowW - WallWidth, 0.f);
-
-    // wall colours
-    LeftWall.setFillColor(Color(80, 80, 80));
-    RightWall.setFillColor(Color(80, 80, 80));
+    RightWall.setPosition(WindowW - (int)WallWidth, 0.f);
 }
 
 // gives a fresh start if the user wants to go for another match within the same window running
@@ -293,8 +301,8 @@ void ResetGame(){
 
     // resetting the walls back to the edges of the window for a new game
     WallWidth = 0.f;
-    LeftWall.setSize(Vector2f(0.f, WindowH));
-    RightWall.setSize(Vector2f(0.f, WindowH));
+    LeftWall.setTextureRect(IntRect(0, 0, 0, (int)WindowH));
+    RightWall.setTextureRect(IntRect(0, 0, 0, (int)WindowH));
 
     LeftWall.setPosition(0.f, 0.f);
     RightWall.setPosition(WindowW, 0.f);
@@ -438,9 +446,31 @@ void DrawText(RenderWindow& window, const string& ThisString, int Size, float XP
     window.draw(t);
 }
 
+// Used to draw any rectangle without creating a RectangleShape each time
+void DrawRect(RenderWindow& window, float XPos, float YPos, float Width, float Height,
+    Color FillCol, float OutlineThick = 0.f, Color OutlineCol = Color::Transparent,
+    bool Centered = true)
+{
+    RectangleShape r(Vector2f(Width, Height));
+
+    // centred rectangles use the middle as origin
+    if (Centered) {
+        r.setOrigin(Width / 2.f, Height / 2.f);
+    }
+
+    r.setPosition(XPos, YPos);
+    r.setFillColor(FillCol);
+    r.setOutlineThickness(OutlineThick);
+    r.setOutlineColor(OutlineCol);
+
+    window.draw(r);
+}
+
 // Function used to display the Play screen and everything it includes
 void DrawWorld(RenderWindow& window, CircleShape& triangle) {
 
+    // drawing the background first so everything else appears on top of it
+    window.draw(GameBg);
 
     // drawing each platform
     for (int i = 0; i < Platforms.size(); i++)
@@ -476,6 +506,9 @@ void DrawWorld(RenderWindow& window, CircleShape& triangle) {
     
     triangle.setPosition(Feet.x - 3/2.f, Feet.y - PlayerH - 14.f);
     window.draw(triangle);
+
+    // box behind the timer so it stays readable on any background
+    DrawRect(window, WindowW / 2.f, 50.f, 110.f, 70.f,Color(190, 35, 75, 255),4.f,Color::Black);
 
 	// displaying the timer on the Play screen
     DrawText(window, to_string((RemainingTime + 59) / 60), 70, WindowW / 2.f, 50.f, Color::White);
@@ -567,6 +600,25 @@ int main() {
         cout << "Could not load arial.ttf";
         return 1;
     }
+    // loading the wall image and letting it repeat so it tiles instead of stretching
+    if (!WallTex.loadFromFile("assets/wall 1.png")) {
+        cout << "ERROR! Could not load wall 1.png";
+        return 0;
+    }
+    WallTex.setRepeated(true);
+    LeftWall.setTexture(WallTex);
+    RightWall.setTexture(WallTex);
+
+    // loading the in-game background ONCE and stretching it to cover the whole window
+    if (!GameBgTex.loadFromFile("assets/game_bg.png")) {
+        cout << "ERROR! Could not load game_bg.png";
+        return 0;
+    }
+    GameBg.setTexture(GameBgTex);
+    GameBg.setScale(
+        WindowW / GameBgTex.getSize().x,
+        WindowH / GameBgTex.getSize().y
+    );
 
     ResetGame();
 
@@ -675,8 +727,6 @@ int main() {
             // passing all the texts to display in the menu screen
             DrawText(window, "COLLAPSE CHASE", 100, WindowW/2.f, 250.f, Color::White);
             DrawText(window, "Press ENTER to start", 50, WindowW/2.f, 400.f, Color::White);
-            DrawText(window, "CONTROLS:", 50, WindowW/2.f, 480.f, Color::White);
-            DrawText(window, "RED:  A D W    BLUE:  Arrow keys", 40, WindowW/2.f, 550.f, Color::White);
             DrawText(window, "Press ESC to quit", 40, WindowW/2.f, 650.f, Color::White);
         }
         else if (CurrentScreen == Screen::Select){
