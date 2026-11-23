@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <iostream>
 #include <random>
 #include <fstream>
@@ -15,7 +16,7 @@ float PlayerW = 50.f, PlayerH = 60.f;
 float WindowW = 1200, WindowH = 810;
 float GroundY = 810.f;
 int FreezeTime = 90;
-int MatchTime = 7 * 60;
+int MatchTime = 90 * 60;
 int RemainingTime = MatchTime;
 Font GameFont;
 
@@ -142,6 +143,10 @@ Texture PlatformTexture;
 Texture GameBgTex;
 Sprite GameBg;
 
+// sound effects (a SoundBuffer holds the audio data, a Sound plays it)
+SoundBuffer JumpBuf, PortalBuf, JumpPadBuf, TagBuf, BeepBuf, GoBuf, LoseBuf, ClickBuf, TickBuf;
+Sound JumpSound, PortalSound, JumpPadSound, TagSound, BeepSound, GoSound, LoseSound, ClickSound, TickSound;
+
 Texture ControlsTex[3];
 string ControlsFiles[] = { "assets/W A D keys.png", "assets/Arrows keys.png", "assets/I J L keys.png" };
 Sprite PlayerControls[3];
@@ -248,6 +253,7 @@ void CheckTag() {
 
             It = i;
             Players[It].Freezed = FreezeTime;
+            TagSound.play();
             break;
         }
     }
@@ -332,12 +338,14 @@ void CheckPortals(Player& p) {
         p.Body.setPosition(PortalPos2);
         p.Velocity.y = 0.f;
         PortalLock = PortalLockFrames;
+        PortalSound.play();
     }
     else if (Portal2.getGlobalBounds().intersects(p.Body.getGlobalBounds())) {
 
         p.Body.setPosition(PortalPos1);
         p.Velocity.y = 0.f;
         PortalLock = PortalLockFrames;
+        PortalSound.play();
     }
 }
 //======================================================================================================
@@ -355,6 +363,7 @@ void CheckJumpPad(Player& p, float PreviousFeetY) {
 
             p.Velocity.y = HighJumpForce;
             p.IsOnGround = false;
+            JumpPadSound.play();
         }
     }
 }
@@ -389,6 +398,7 @@ void Update(Player& p, RenderWindow& window) {
     if (CanMove && Keyboard::isKeyPressed(p.jump) && p.IsOnGround) {
         p.Velocity.y = -12.f;
         p.IsOnGround = false;
+        JumpSound.play();
     }
 
     float PreviousFeetY = p.Body.getPosition().y;
@@ -548,6 +558,17 @@ void SetupJumpPad(Sprite& JumpPad, Vector2f JumpPadPos) {
     JumpPad.setPosition(JumpPadPos);
 }
 
+// loads one sound file into its buffer and connects the buffer to its Sound
+bool LoadSound(SoundBuffer& Buffer, Sound& ThisSound, const string& File) {
+
+    if (!Buffer.loadFromFile(File)) {
+        cout << "ERROR! Could not load " << File << endl;
+        return false;
+    }
+    ThisSound.setBuffer(Buffer);
+    return true;
+}
+
 int main() {
 
     // creating a window and player and setting up their dimensions
@@ -633,10 +654,23 @@ int main() {
             return 0;
         }
         PlayerControls[i].setTexture(ControlsTex[i]);
-        PlayerControls[i].setScale(
-            200.f / ControlsTex[i].getSize().x,
-            200.f / ControlsTex[i].getSize().y
-        );
+        PlayerControls[i].setScale(200.f / ControlsTex[i].getSize().x,200.f / ControlsTex[i].getSize().y);
+
+    // loading all sound effects (every one is tried so all missing files get reported)
+    bool SoundsOk = true;
+    SoundsOk &= LoadSound(JumpBuf, JumpSound, "assets/jump.wav");
+    SoundsOk &= LoadSound(PortalBuf, PortalSound, "assets/portal.wav");
+    SoundsOk &= LoadSound(JumpPadBuf, JumpPadSound, "assets/jumppad.wav");
+    SoundsOk &= LoadSound(TagBuf, TagSound, "assets/tag.wav");
+    SoundsOk &= LoadSound(BeepBuf, BeepSound, "assets/beep.wav");
+    SoundsOk &= LoadSound(GoBuf, GoSound, "assets/go.wav");
+    SoundsOk &= LoadSound(LoseBuf, LoseSound, "assets/lose.wav");
+    SoundsOk &= LoadSound(ClickBuf, ClickSound, "assets/click.wav");
+    SoundsOk &= LoadSound(TickBuf, TickSound, "assets/tick.wav");
+    if (!SoundsOk) {
+        return 0;
+    }
+
     }
     ResetGame();
 
@@ -700,9 +734,11 @@ int main() {
 
                     if (event.key.code == Keyboard::Left){
                         PlayerCount = 2;
+                        ClickSound.play();
                     }
                     else if (event.key.code == Keyboard::Right){
                         PlayerCount = 3;
+                        ClickSound.play();
                     }
                 }
                 if (CurrentScreen == Screen::Pause) {
@@ -742,7 +778,14 @@ int main() {
             
             // decreasing countdown frames each second and moving to Play screen once it reaches zero
             CountDownFrames--;
-            if (CountDownFrames <= 0){
+
+            // one beep at the start of each second (3, 2, 1)
+            if (CountDownFrames > 0 && CountDownFrames % 60 == 59) {
+                BeepSound.play();
+            }
+
+            if (CountDownFrames <= 0) {
+                GoSound.play();
                 CurrentScreen = Screen::Play;
             }
 
@@ -754,6 +797,11 @@ int main() {
             // starting will shrinking once in play state and decreasing game time each second
             UpdateWalls();
             RemainingTime--;
+
+            // a tick every second during the last 10 seconds
+            if (RemainingTime > 0 && RemainingTime <= 10 * 60 && RemainingTime % 60 == 0) {
+                TickSound.play();
+            }
 
 			// reducing the portal lock time each second if it is greater than zero
             if (PortalLock > 0) {
@@ -772,6 +820,7 @@ int main() {
             if (RemainingTime <= 0){
                 RemainingTime = 0;
                 CurrentScreen = Screen::End;
+                LoseSound.play();
             }
         }
         // Background colour for all the screens
@@ -842,12 +891,12 @@ int main() {
                 window.draw(PlayerControls[j]);
             }
 
-            DrawRect(window, 320, 740.f, 350, 50, Color(15, 23, 42), 5.f, Color::White);
+            DrawRect(window, 330, 740.f, 370, 50, Color(15, 23, 42), 5.f, Color::White);
             DrawRect(window, 675, 740.f, 230, 50, Color(15, 23, 42), 5.f, Color::White);
             DrawRect(window, 950, 740.f, 200, 50, Color(15, 23, 42), 5.f, Color::White);
 
             // Text to show options to navigate
-            DrawText(window, "Left / Right to Choose        Enter to start        Esc to back", 36, WindowW / 2.f, 740.f, Color::White);
+            DrawText(window, "Left / Right to Choose       Enter to start        Esc to back", 36, WindowW / 2.f, 740.f, Color::White);
         }
 
         else{
@@ -878,7 +927,7 @@ int main() {
                 // Final result text
                 DrawText(window, PlayerNames[It] + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
 
-                DrawRect(window, 470, 580.f, 340, 70, Color(15, 23, 42), 10.f, Color::White);
+                DrawRect(window, 470, 580.f, 350, 70, Color(15, 23, 42), 10.f, Color::White);
                 DrawRect(window, 790, 580.f, 240, 70, Color(15, 23, 42), 10.f, Color::White);
 
                 // options for user to enter
