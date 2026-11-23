@@ -15,7 +15,7 @@ float PlayerW = 50.f, PlayerH = 60.f;
 float WindowW = 1200, WindowH = 810;
 float GroundY = 810.f;
 int FreezeTime = 90;
-int MatchTime = 60 * 60;
+int MatchTime = 7 * 60;
 int RemainingTime = MatchTime;
 Font GameFont;
 
@@ -60,7 +60,10 @@ Sprite JumpPad;
 char Level[Rows][Cols];
 
 // Diferent game states with 1 of 4 active at a time
-enum class Screen{Menu, Select, CountDown, Play, End};
+enum class Screen{Menu, Select, CountDown, Play, Pause, End};
+int PauseOptions = 3;
+string PauseLabels[] = { "RESUME", "RESTART", "QUIT TO MENU" };
+int PauseChoice = 0;
 
 // initially the winsow should start from the menu screen 
 Screen CurrentScreen = Screen::Menu;
@@ -139,6 +142,9 @@ Texture PlatformTexture;
 Texture GameBgTex;
 Sprite GameBg;
 
+Texture ControlsTex[3];
+string ControlsFiles[] = { "assets/W A D keys.png", "assets/Arrows keys.png", "assets/I J L keys.png" };
+Sprite PlayerControls[3];
 
 // for loading the level.txt file that contains the hashes and empty spaces for the platforms
 void LoadLevel()
@@ -508,7 +514,7 @@ void DrawWorld(RenderWindow& window, CircleShape& triangle) {
     window.draw(triangle);
 
     // box behind the timer so it stays readable on any background
-    DrawRect(window, WindowW / 2.f, 50.f, 110.f, 70.f,Color(190, 35, 75, 255),4.f,Color::Black);
+    DrawRect(window, WindowW / 2.f, 50.f, 110.f, 70.f,Color(15, 23, 42),4.f,Color::Black);
 
 	// displaying the timer on the Play screen
     DrawText(window, to_string((RemainingTime + 59) / 60), 70, WindowW / 2.f, 50.f, Color::White);
@@ -549,6 +555,7 @@ int main() {
 
     // Capping the frame rate
     window.setFramerateLimit(60);
+    window.setKeyRepeatEnabled(false);
 
     LoadLevel();
 
@@ -619,7 +626,18 @@ int main() {
         WindowW / GameBgTex.getSize().x,
         WindowH / GameBgTex.getSize().y
     );
+    for (int i = 0; i < 3; i++) {
+        if (!ControlsTex[i].loadFromFile(ControlsFiles[i])) {
 
+            cout << "ERROR! Could not load " << ControlsFiles[i] << endl;
+            return 0;
+        }
+        PlayerControls[i].setTexture(ControlsTex[i]);
+        PlayerControls[i].setScale(
+            200.f / ControlsTex[i].getSize().x,
+            200.f / ControlsTex[i].getSize().y
+        );
+    }
     ResetGame();
 
     // creating a triangle above the player to represent tag
@@ -649,8 +667,15 @@ int main() {
                     if (CurrentScreen == Screen::Menu){
                         window.close();
                     } 
+                    else if (CurrentScreen == Screen::Play) {
+                        CurrentScreen = Screen::Pause;
+                        PauseChoice = 0;
+                    }
+                    else if (CurrentScreen == Screen::Pause) {
+                        CurrentScreen = Screen::Play;
+                    }
                     // if other screens are being shown then returns the screen to menu
-                    else{
+                    else {
                         CurrentScreen = Screen::Menu;
                     }
                 }
@@ -678,6 +703,36 @@ int main() {
                     }
                     else if (event.key.code == Keyboard::Right){
                         PlayerCount = 3;
+                    }
+                }
+                if (CurrentScreen == Screen::Pause) {
+
+                    if (event.key.code == Keyboard::Up) {
+
+                        PauseChoice--;
+                        if (PauseChoice < 0) {
+                            PauseChoice = PauseChoice = PauseOptions - 1;
+                        }
+                    }
+                    if (event.key.code == Keyboard::Down) {
+
+                        PauseChoice++;
+                        if (PauseChoice >= PauseOptions) {
+                            PauseChoice = 0;
+                        }
+                    }
+                    if (event.key.code == Keyboard::Enter) {
+                        if (PauseChoice == 0) {
+                            CurrentScreen = Screen::Play;                      // resume
+                        }
+                        else if (PauseChoice == 1) {
+                            ResetGame();                                       // restart with the same player count
+                            CurrentScreen = Screen::CountDown;
+                            CountDownFrames = CountDownTime;
+                        }
+                        else {
+                            CurrentScreen = Screen::Menu;                      // quit to menu
+                        }
                     }
                 }
             }
@@ -724,12 +779,19 @@ int main() {
 
         if (CurrentScreen == Screen::Menu){
 
+
+            DrawRect(window, WindowW / 2.f, 250.f, 950, 140, Color(15, 23, 42), 15.f, Color::White);
+
             // passing all the texts to display in the menu screen
             DrawText(window, "COLLAPSE CHASE", 100, WindowW/2.f, 250.f, Color::White);
-            DrawText(window, "Press ENTER to start", 50, WindowW/2.f, 400.f, Color::White);
-            DrawText(window, "Press ESC to quit", 40, WindowW/2.f, 650.f, Color::White);
+            DrawRect(window, WindowW / 2.f, 485.f, 650, 150, Color(15, 23, 42), 10.f, Color::White);
+            DrawRect(window, WindowW / 2.f - 15.f, 450.f, 130, 50, Color(0, 0, 0), 5.f, Color::White);
+            DrawRect(window, WindowW / 2.f - 5.f, 520.f, 90, 45, Color(0, 0, 0), 5.f, Color::White);
+            DrawText(window, "Press  Enter  to start", 50, WindowW/2.f, 450.f, Color::White);
+            DrawText(window, "Press  Esc  to quit", 40, WindowW/2.f, 520.f, Color::White);
         }
         else if (CurrentScreen == Screen::Select){
+            DrawRect(window, WindowW / 2.f, 200.f, 950, 140, Color(15, 23, 42), 15.f, Color::White);
             // Title display that asks to choose 2 or 3 player game
             DrawText(window, "CHOOSE PLAYERS", 100, WindowW / 2.f, 200.f, Color::White);
 
@@ -762,13 +824,30 @@ int main() {
                 DrawText(window, to_string(n)+" PLAYERS", 50, x, 400.f, Color::White);   
             }
             // Controls display according to the number of players
-            string Controls = "RED: A D W     BLUE: Arrow keys";
+            string Controls = "RED:                              BLUE:";
             if (PlayerCount == 3){
-                Controls = Controls + "     GREEN: J L I";
+                Controls = Controls + "                              GREEN:                        ";
+                PlayerControls[0].setPosition(Vector2f(100.f, 500.f));
+                PlayerControls[1].setPosition(Vector2f(500.f, 500.f));
+                PlayerControls[2].setPosition(Vector2f(950.f, 500.f));
+            }
+            else {
+                Controls = Controls + "                             ";
+
+                PlayerControls[0].setPosition(Vector2f(300.f, 500.f));
+                PlayerControls[1].setPosition(Vector2f(700.f, 500.f));
             }
             DrawText(window, Controls, 36, WindowW / 2.f, 560.f, Color::White);
+            for (int j = 0; j < PlayerCount; j++) {
+                window.draw(PlayerControls[j]);
+            }
+
+            DrawRect(window, 320, 740.f, 350, 50, Color(15, 23, 42), 5.f, Color::White);
+            DrawRect(window, 675, 740.f, 230, 50, Color(15, 23, 42), 5.f, Color::White);
+            DrawRect(window, 950, 740.f, 200, 50, Color(15, 23, 42), 5.f, Color::White);
+
             // Text to show options to navigate
-            DrawText(window, "Left and Right Arrow keys to Choose        ENTER to start      ESC to back", 36, WindowW / 2.f, 680.f, Color::White);
+            DrawText(window, "Left / Right to Choose        Enter to start        Esc to back", 36, WindowW / 2.f, 740.f, Color::White);
         }
 
         else{
@@ -777,9 +856,10 @@ int main() {
 
             // showing the countdown timer in the middle of the screen
             if (CurrentScreen == Screen::CountDown){
+                DrawRect(window, WindowW / 2.f, WindowH / 2.f, 200.f, 200.f, Color(0, 0, 0, 100), 5.f, Color::White);
                 DrawText(window, to_string((CountDownFrames + 59)/ 60), 200, WindowW/2.f, WindowH/2.f, Color::White);
             }
-            // 
+			// showing the end result of the game once the time is up
             if (CurrentScreen == Screen::End){
                 // covering all the players and platforms with a large rectangle to show end result
                 RectangleShape EndBackground(Vector2f(WindowW, WindowH));
@@ -793,12 +873,41 @@ int main() {
                 Players[It].Visual.setColor(Color::White); // turning back to full opacity if the player was freezed at the end
                 window.draw(Players[It].Visual);
                 
+                DrawRect(window, WindowW / 2.f, WindowH / 2.f, 600, 120, Color(15, 23, 42), 15.f, Color::Yellow);
+
                 // Final result text
                 DrawText(window, PlayerNames[It] + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
+
+                DrawRect(window, 470, 580.f, 340, 70, Color(15, 23, 42), 10.f, Color::White);
+                DrawRect(window, 790, 580.f, 240, 70, Color(15, 23, 42), 10.f, Color::White);
+
                 // options for user to enter
-                DrawText(window, "ENTER = play again    ESC = menu", 40, WindowW/2.f, 500.f, Color::White);
+                DrawText(window, "Enter = play again    Esc = menu", 40, WindowW/2.f, 580.f, Color::White);
                 
                 }
+            if (CurrentScreen == Screen::Pause) {
+
+                DrawRect(window, WindowW / 2.f, WindowH / 2.f, WindowW, WindowH, Color(0, 0, 0, 150));
+                DrawText(window, "PAUSED", 100, WindowW / 2.f, 220.f, Color::White);
+
+                for (int i = 0; i < PauseOptions; i++) {
+
+                    float y = 380.f + i * 90.f;
+
+                    if (i == PauseChoice) {
+                        DrawRect(window, WindowW / 2.f, y, 420.f, 70.f, Color(255, 255, 255, 90), 5.f, Color::Yellow);
+                    }
+                    else {
+                        DrawRect(window, WindowW / 2.f, y, 420.f, 70.f, Color(0, 0, 0, 100), 3.f, Color::White);
+                    }
+
+                    DrawText(window, PauseLabels[i], 44, WindowW / 2.f, y, Color::White);
+                }
+                DrawRect(window, 340.f, 700.f, 310.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);
+                DrawRect(window, 650.f, 700.f, 250.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);
+                DrawRect(window, 910.f, 700.f, 220.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);
+                DrawText(window, "UP / DOWN to choose      ENTER to select      ESC to resume", 30, WindowW / 2.f, 700.f, Color::White);
+            }
         }
 
         // displaying final window
