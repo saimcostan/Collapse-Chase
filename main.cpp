@@ -605,7 +605,7 @@ int main() {
                     // if menu screen is showing then closes the window
                     if (CurrentScreen == Screen::Menu){
                         window.close();
-                    }
+                    } 
                     // if other screens are being shown then returns the screen to menu
                     else{
                         CurrentScreen = Screen::Menu;
