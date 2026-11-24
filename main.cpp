@@ -701,10 +701,12 @@ int main() {
                     if (CurrentScreen == Screen::Menu){
                         window.close();
                     } 
+                    // if play screen then escape button pauses the game
                     else if (CurrentScreen == Screen::Play) {
                         CurrentScreen = Screen::Pause;
                         PauseChoice = 0;
                     }
+                    // if pause screen then returns back to play on pressing escape
                     else if (CurrentScreen == Screen::Pause) {
                         CurrentScreen = Screen::Play;
                     }
@@ -742,19 +744,19 @@ int main() {
                     }
                 }
                 if (CurrentScreen == Screen::Pause) {
-
+                    // using up and down arrow keys to switch between pause options
                     if (event.key.code == Keyboard::Up) {
 
                         PauseChoice--;
                         if (PauseChoice < 0) {
-                            PauseChoice = PauseChoice = PauseOptions - 1;
+                            PauseChoice = PauseChoice = PauseOptions - 1;// wrapping back to last option after first is reached
                         }
                     }
                     if (event.key.code == Keyboard::Down) {
 
                         PauseChoice++;
                         if (PauseChoice >= PauseOptions) {
-                            PauseChoice = 0;
+                            PauseChoice = 0; // wrapping back to first option if last is reached
                         }
                     }
                     if (event.key.code == Keyboard::Enter) {
@@ -828,11 +830,12 @@ int main() {
 
         if (CurrentScreen == Screen::Menu){
 
-
+            // rectangle that includes the heading text
             DrawRect(window, WindowW / 2.f, 250.f, 950, 140, Color(15, 23, 42), 15.f, Color::White);
 
             // passing all the texts to display in the menu screen
             DrawText(window, "COLLAPSE CHASE", 100, WindowW/2.f, 250.f, Color::White);
+            // other rectangles for the text shown below on the menu screen
             DrawRect(window, WindowW / 2.f, 485.f, 650, 150, Color(15, 23, 42), 10.f, Color::White);
             DrawRect(window, WindowW / 2.f - 15.f, 450.f, 130, 50, Color(0, 0, 0), 5.f, Color::White);
             DrawRect(window, WindowW / 2.f - 5.f, 520.f, 90, 45, Color(0, 0, 0), 5.f, Color::White);
@@ -890,7 +893,7 @@ int main() {
             for (int j = 0; j < PlayerCount; j++) {
                 window.draw(PlayerControls[j]);
             }
-
+            // rectangles for other options
             DrawRect(window, 330, 740.f, 370, 50, Color(15, 23, 42), 5.f, Color::White);
             DrawRect(window, 675, 740.f, 230, 50, Color(15, 23, 42), 5.f, Color::White);
             DrawRect(window, 950, 740.f, 200, 50, Color(15, 23, 42), 5.f, Color::White);
@@ -922,7 +925,7 @@ int main() {
                 Players[It].Visual.setColor(Color::White); // turning back to full opacity if the player was freezed at the end
                 window.draw(Players[It].Visual);
                 
-                DrawRect(window, WindowW / 2.f, WindowH / 2.f, 600, 120, Color(15, 23, 42), 15.f, Color::Yellow);
+                DrawRect(window, WindowW / 2.f, WindowH / 2.f, 700, 120, Color(15, 23, 42), 15.f, Color::Yellow);
 
                 // Final result text
                 DrawText(window, PlayerNames[It] + " LOSES!", 90, WindowW / 2.f, WindowH / 2.f, Color::Yellow);
@@ -935,23 +938,26 @@ int main() {
                 
                 }
             if (CurrentScreen == Screen::Pause) {
-
                 DrawRect(window, WindowW / 2.f, WindowH / 2.f, WindowW, WindowH, Color(0, 0, 0, 150));
                 DrawText(window, "PAUSED", 100, WindowW / 2.f, 220.f, Color::White);
 
+                // rectangles drawing that includes three pause options
                 for (int i = 0; i < PauseOptions; i++) {
 
                     float y = 380.f + i * 90.f;
 
                     if (i == PauseChoice) {
+                        // highlighting the option currently selected
                         DrawRect(window, WindowW / 2.f, y, 420.f, 70.f, Color(255, 255, 255, 90), 5.f, Color::Yellow);
                     }
                     else {
+                        // darkening the option that is not selected
                         DrawRect(window, WindowW / 2.f, y, 420.f, 70.f, Color(0, 0, 0, 100), 3.f, Color::White);
                     }
-
+                    // texts for all the three options
                     DrawText(window, PauseLabels[i], 44, WindowW / 2.f, y, Color::White);
                 }
+                // rectangles and text for navigation in this screen
                 DrawRect(window, 340.f, 700.f, 310.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);
                 DrawRect(window, 650.f, 700.f, 250.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);
                 DrawRect(window, 910.f, 700.f, 220.f, 50.f, Color(0, 0, 0, 100), 3.f, Color::White);

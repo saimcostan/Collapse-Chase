@@ -6,9 +6,7 @@ include(FetchContent)
 set(SFML_BUILD_AUDIO ON)
 set(SFML_BUILD_NETWORK OFF)
 FetchContent_Declare(SFML
-    GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 2.6.1
-    GIT_SHALLOW ON
+    URL https://github.com/SFML/SFML/archive/refs/tags/2.6.1.zip
     FIND_PACKAGE_ARGS 2.6 COMPONENTS graphics window system audio)
 FetchContent_MakeAvailable(SFML)
 
