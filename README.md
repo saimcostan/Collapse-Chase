@@ -44,3 +44,5 @@ cmake --build build
 ```
 
 Then run the executable from the build folder.
+
+If any build error pops up then go to project and click on Delete Cache and Reconfigure. Then run the game.exe file and the game will start running. 

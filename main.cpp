@@ -624,7 +624,7 @@ int main() {
     }
 
 	//checking if the font file is loaded or not
-    if (!GameFont.loadFromFile("arial.ttf")) {
+    if (!GameFont.loadFromFile("assets/arial.ttf")) {
         cout << "Could not load arial.ttf";
         return 1;
     }
