@@ -53,4 +53,6 @@ cmake --build build
 
 Then run the executable from the build folder.
 
+Since this code is setup with CMake, an option of enabling CMake integration will appear so click on that and set the directory to "CMakeLists.txt" that is already in the project folder. Then it will configure and game.exe can be run.
+
 If any build error pops up then go to project and click on Delete Cache and Reconfigure. Then run the game.exe file and the game will start running. 
